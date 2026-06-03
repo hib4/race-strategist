@@ -1,0 +1,62 @@
+[
+  {
+    "name": "majority_baseline",
+    "cv_pr_auc": 0.0316082892927866,
+    "threshold": 1.1,
+    "oof_f1": 0.0,
+    "best_params": {},
+    "fit_time_sec": 0.015739917755126953,
+    "preprocessor_kind": "tree"
+  },
+  {
+    "name": "logistic_regression",
+    "cv_pr_auc": 0.28089193491134923,
+    "threshold": 0.8698283755551557,
+    "oof_f1": 0.3121640453907005,
+    "best_params": {
+      "model__C": 0.1,
+      "model__penalty": "l2"
+    },
+    "fit_time_sec": 3.689648151397705,
+    "preprocessor_kind": "scaled"
+  },
+  {
+    "name": "decision_tree",
+    "cv_pr_auc": 0.3840984531333416,
+    "threshold": 0.9221453971283256,
+    "oof_f1": 0.4450641383152511,
+    "best_params": {
+      "model__max_depth": 6,
+      "model__min_samples_leaf": 200
+    },
+    "fit_time_sec": 3.1851820945739746,
+    "preprocessor_kind": "tree"
+  },
+  {
+    "name": "random_forest",
+    "cv_pr_auc": 0.41920971031302867,
+    "threshold": 0.6471671817385299,
+    "oof_f1": 0.4032105760146254,
+    "best_params": {
+      "model__max_depth": null,
+      "model__max_features": "sqrt",
+      "model__min_samples_leaf": 5,
+      "model__n_estimators": 200
+    },
+    "fit_time_sec": 40.19027304649353,
+    "preprocessor_kind": "tree"
+  },
+  {
+    "name": "gradient_boosting",
+    "cv_pr_auc": 0.4153794253766465,
+    "threshold": 0.966306399515731,
+    "oof_f1": 0.38435565559890883,
+    "best_params": {
+      "model__learning_rate": 0.05,
+      "model__max_depth": 3,
+      "model__n_estimators": 200
+    },
+    "fit_time_sec": 94.16399693489075,
+    "preprocessor_kind": "tree"
+  }
+]

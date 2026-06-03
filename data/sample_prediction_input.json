@@ -1,0 +1,16 @@
+{
+  "LapNumber": 30,
+  "Stint": 1,
+  "TyreLife": 30.0,
+  "Position": 6,
+  "LapTime (s)": 108.91,
+  "Year": 2024,
+  "LapTime_Delta": 15.259999999999993,
+  "Cumulative_Degradation": -15.128999999999792,
+  "RaceProgress": 0.3846153846153846,
+  "Normalized_TyreLife": 0.8108108108108109,
+  "Position_Change": -2.0,
+  "Compound": "HARD",
+  "Driver": "NOR",
+  "Race": "Azerbaijan Grand Prix"
+}

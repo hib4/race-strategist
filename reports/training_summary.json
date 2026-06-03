@@ -1,0 +1,107 @@
+{
+  "test_size": 22088,
+  "test_pos_rate": 0.03463419051068453,
+  "best_model": "random_forest",
+  "best_pr_auc": 0.42703706875577335,
+  "best_f1": 0.3979381443298969,
+  "best_threshold": 0.6471671817385299,
+  "comparison": [
+    {
+      "model": "majority_baseline",
+      "pr_auc": 0.03463419051068453,
+      "roc_auc": 0.0,
+      "f1": 0.0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "brier": 0.03463419051068453,
+      "threshold": 1.1,
+      "fit_time_sec": 0.015739917755126953,
+      "inference_time_sec": 0.013607263565063477,
+      "best_params": "{}"
+    },
+    {
+      "model": "logistic_regression",
+      "pr_auc": 0.29415395495340796,
+      "roc_auc": 0.8559425996476847,
+      "f1": 0.24427480916030533,
+      "precision": 0.7368421052631579,
+      "recall": 0.14640522875816994,
+      "brier": 0.09555746703686764,
+      "threshold": 0.8698283755551557,
+      "fit_time_sec": 3.689648151397705,
+      "inference_time_sec": 0.007660865783691406,
+      "best_params": "{\"model__C\": 0.1, \"model__penalty\": \"l2\"}"
+    },
+    {
+      "model": "decision_tree",
+      "pr_auc": 0.3935264071731826,
+      "roc_auc": 0.8252184958461802,
+      "f1": 0.41297935103244837,
+      "precision": 0.8333333333333334,
+      "recall": 0.27450980392156865,
+      "brier": 0.12545541240392832,
+      "threshold": 0.9221453971283256,
+      "fit_time_sec": 3.1851820945739746,
+      "inference_time_sec": 0.006691694259643555,
+      "best_params": "{\"model__max_depth\": 6, \"model__min_samples_leaf\": 200}"
+    },
+    {
+      "model": "random_forest",
+      "pr_auc": 0.42703706875577335,
+      "roc_auc": 0.8937656996235003,
+      "f1": 0.3979381443298969,
+      "precision": 0.9414634146341463,
+      "recall": 0.2522875816993464,
+      "brier": 0.036109692832910004,
+      "threshold": 0.6471671817385299,
+      "fit_time_sec": 40.19027304649353,
+      "inference_time_sec": 0.053604841232299805,
+      "best_params": "{\"model__max_depth\": null, \"model__max_features\": \"sqrt\", \"model__min_samples_leaf\": 5, \"model__n_estimators\": 200}"
+    },
+    {
+      "model": "gradient_boosting",
+      "pr_auc": 0.4184504594722745,
+      "roc_auc": 0.8740755249402361,
+      "f1": 0.3379978471474704,
+      "precision": 0.9573170731707317,
+      "recall": 0.20522875816993463,
+      "brier": 0.1564476872235867,
+      "threshold": 0.966306399515731,
+      "fit_time_sec": 94.16399693489075,
+      "inference_time_sec": 0.01907515525817871,
+      "best_params": "{\"model__learning_rate\": 0.05, \"model__max_depth\": 3, \"model__n_estimators\": 200}"
+    }
+  ],
+  "per_race_recall_best": [
+    {
+      "race": "Abu Dhabi Grand Prix",
+      "positives": 92,
+      "recall": 0.358695652173913
+    },
+    {
+      "race": "Chinese Grand Prix",
+      "positives": 65,
+      "recall": 0.015384615384615385
+    },
+    {
+      "race": "Dutch Grand Prix",
+      "positives": 222,
+      "recall": 0.34684684684684686
+    },
+    {
+      "race": "Hungarian Grand Prix",
+      "positives": 147,
+      "recall": 0.2585034013605442
+    },
+    {
+      "race": "Pre-Season Track Session",
+      "positives": 47,
+      "recall": 0.02127659574468085
+    },
+    {
+      "race": "Spanish Grand Prix",
+      "positives": 192,
+      "recall": 0.22395833333333334
+    }
+  ]
+}

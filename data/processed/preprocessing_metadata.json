@@ -1,0 +1,53 @@
+{
+  "scaled_feature_names": [
+    "LapNumber",
+    "Stint",
+    "TyreLife",
+    "Position",
+    "LapTime (s)",
+    "Year",
+    "LapTime_Delta",
+    "Cumulative_Degradation",
+    "RaceProgress",
+    "Normalized_TyreLife",
+    "Position_Change",
+    "Compound_HARD",
+    "Compound_INTERMEDIATE",
+    "Compound_MEDIUM",
+    "Compound_SOFT",
+    "Compound_UNKNOWN",
+    "Compound_WET",
+    "Driver",
+    "Race"
+  ],
+  "tree_feature_names": [
+    "LapNumber",
+    "Stint",
+    "TyreLife",
+    "Position",
+    "LapTime (s)",
+    "Year",
+    "LapTime_Delta",
+    "Cumulative_Degradation",
+    "RaceProgress",
+    "Normalized_TyreLife",
+    "Position_Change",
+    "Compound",
+    "Driver",
+    "Race"
+  ],
+  "target": "WillPitNextLap",
+  "test_races": [
+    "Abu Dhabi Grand Prix",
+    "Chinese Grand Prix",
+    "Dutch Grand Prix",
+    "Hungarian Grand Prix",
+    "Pre-Season Track Session",
+    "Spanish Grand Prix"
+  ],
+  "n_train_rows": 79283,
+  "n_test_rows": 22088,
+  "train_pos_rate": 0.0316082892927866,
+  "test_pos_rate": 0.03463419051068453,
+  "random_state": 42
+}
