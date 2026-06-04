@@ -106,6 +106,26 @@ These features describe the race situation from several angles:
 - Track position.
 - Lap pace and degradation.
 
+The model also uses causal temporal features derived from the lap history within each (Driver, Race, Year) group:
+
+| Feature | Meaning |
+|---|---|
+| `LapTime_lag1`, `LapTime_lag2`, `LapTime_lag3` | Lap times from the previous 1–3 laps |
+| `LapTime_Delta_lag1/2/3` | Lap-time deltas from the previous 1–3 laps |
+| `LapTime_rolling_mean_3` | Rolling mean lap time over the past 3 laps |
+| `LapTime_rolling_std_3` | Rolling standard deviation of lap time over the past 3 laps |
+| `LapTime_Delta_rolling_mean_3` | Rolling mean delta over the past 3 laps |
+| `LapTime_Delta_rolling_std_3` | Rolling standard deviation of delta over the past 3 laps |
+| `Cumulative_Degradation_rolling_mean_3` | Short-term degradation trend |
+| `Position_lag1` | Position on the previous lap |
+| `Position_rolling_mean_3` | Rolling mean position over the past 3 laps |
+| `Position_Change_lag1` | Position change on the previous lap |
+| `LapTime_diff_from_rolling_mean3` | Pace slowdown signal: current lap time minus the 3-lap rolling mean |
+| `Compound_changed_last_lap` | Flag indicating whether the tyre compound changed since the prior lap |
+| `Lap_history_count` | Number of prior laps available (0–3); 0 at the start of each stint |
+
+Each temporal feature is computed strictly from laps with smaller `LapNumber` within the same (Driver, Race, Year) group, so no future information leaks into any row.
+
 ## 5. Machine Learning Problem
 
 This project uses supervised learning.
@@ -243,7 +263,7 @@ The training code is in:
 src/train.py
 ```
 
-The project trains five model types:
+The project trains seven model types:
 
 | Model | Purpose |
 |---|---|
@@ -252,6 +272,8 @@ The project trains five model types:
 | Decision Tree | Simple tree-based model |
 | Random Forest | Ensemble of many decision trees |
 | Gradient Boosting | Sequential tree ensemble |
+| LightGBM | Fast gradient boosting with native imbalance weighting (`scale_pos_weight`) |
+| XGBoost | Histogram-based gradient boosting with `scale_pos_weight` |
 
 The majority baseline is important because it shows what performance looks like when the model does not really learn pit-stop patterns. The real models should perform much better than this baseline.
 
@@ -287,7 +309,7 @@ average_precision
 
 Average precision is the same idea as PR-AUC. It is useful for imbalanced classification because it focuses on how well the model finds the rare positive class. In this summary, the main headline metric is ROC-AUC because it shows how well the model ranks pit-risk laps above no-pit laps across thresholds.
 
-### Step 3: Threshold Tuning
+### Step 3: Calibration and Threshold Tuning
 
 Most classifiers output a probability, for example:
 
@@ -301,19 +323,27 @@ But the final prediction needs to be:
 0 or 1
 ```
 
-So the project chooses a threshold. If the probability is greater than or equal to the threshold, the model predicts `1`.
+So the project chooses a threshold. If the calibrated probability is greater than or equal to the threshold, the model predicts `1`.
 
 Example:
 
 ```text
 Probability = 0.72
-Threshold = 0.647
+Threshold = 0.488
 Prediction = 1
 ```
 
-The threshold is tuned using out-of-fold predictions from cross-validation. The selected threshold maximizes F1 on the precision-recall curve.
+Before threshold tuning, the raw out-of-fold probabilities are passed through an isotonic regression calibrator trained on the OOF labels. Calibration aligns the raw probability distribution closer to the true positive rate, which makes threshold selection more reliable.
 
-This is better than blindly using `0.5`, because rare-event classification often needs a different threshold.
+The threshold is then selected using a recall-targeted policy:
+
+```text
+Policy: recall_target_0.60
+```
+
+This picks the highest-precision threshold whose OOF recall is at least 0.60. If no threshold on the PR curve reaches 0.60, the fallback selects the threshold that maximizes F-beta with beta=2 (recall-weighted).
+
+This approach is better than optimizing for F1 or using a fixed 0.5 threshold, because rare-event pit prediction benefits from catching more true pit stops even at the cost of some additional false alerts.
 
 ## 10. Evaluation Metrics Explained Simply
 
@@ -391,42 +421,46 @@ Current held-out test results are:
 
 | Model | ROC-AUC | PR-AUC | F1 | Precision | Recall | Brier | Threshold |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Random Forest | 0.8938 | 0.4270 | 0.3979 | 0.9415 | 0.2523 | 0.0361 | 0.647 |
-| Gradient Boosting | 0.8741 | 0.4185 | 0.3380 | 0.9573 | 0.2052 | 0.1564 | 0.966 |
-| Logistic Regression | 0.8559 | 0.2942 | 0.2443 | 0.7368 | 0.1464 | 0.0956 | 0.870 |
-| Decision Tree | 0.8252 | 0.3935 | 0.4130 | 0.8333 | 0.2745 | 0.1255 | 0.922 |
+| XGBoost | 0.9880 | 0.8571 | 0.7523 | 0.9140 | 0.6392 | 0.0122 | 0.488 |
+| Random Forest | 0.9874 | 0.8506 | 0.7028 | 0.9000 | 0.5765 | 0.0119 | 0.561 |
+| LightGBM | 0.9877 | 0.8440 | 0.7338 | 0.9109 | 0.6144 | 0.0125 | 0.511 |
+| Gradient Boosting | 0.9859 | 0.7859 | 0.5806 | 0.8612 | 0.4379 | 0.0164 | 0.487 |
+| Decision Tree | 0.9319 | 0.7504 | 0.7208 | 0.8285 | 0.6379 | 0.0151 | 0.392 |
+| Logistic Regression | 0.9156 | 0.3163 | 0.3875 | 0.3649 | 0.4131 | 0.0284 | 0.104 |
 | Majority Baseline | n/a | 0.0346 | 0.0000 | 0.0000 | 0.0000 | 0.0346 | 1.100 |
+
+All thresholds use the `recall_target_0.60` policy on isotonic-calibrated OOF probabilities.
 
 The best model by ROC-AUC is:
 
 ```text
-Random Forest
+XGBoost
 ```
 
 Its test performance:
 
 | Metric | Value |
 |---|---:|
-| ROC-AUC | 0.8938 |
-| PR-AUC | 0.4270 |
-| F1 | 0.3979 |
-| Precision | 0.9415 |
-| Recall | 0.2523 |
-| Threshold | 0.647 |
+| ROC-AUC | 0.9880 |
+| PR-AUC | 0.8571 |
+| F1 | 0.7523 |
+| Precision | 0.9140 |
+| Recall | 0.6392 |
+| Threshold | 0.488 |
 
 ## 12. How To Interpret The Results
 
-The Random Forest model is much better than random guessing.
+The XGBoost model is much better than random guessing and substantially stronger than the earlier Random Forest baseline.
 
-The main result is the Random Forest ROC-AUC:
+The main result is the XGBoost ROC-AUC:
 
 ```text
-0.8938
+0.9880
 ```
 
-This means the model usually ranks actual pit-next-lap situations above no-pit situations. In other words, the model has learned real pit-stop signal from the data.
+This means the model almost always ranks actual pit-next-lap situations above no-pit situations. In other words, the model has learned strong pit-stop signal from both the current-lap state and recent lap history.
 
-As a supporting rare-event metric, the Random Forest PR-AUC is also much higher than the random PR-AUC floor.
+As a supporting rare-event metric, the XGBoost PR-AUC is also far above the random PR-AUC floor.
 
 The random PR-AUC floor is approximately the positive rate:
 
@@ -434,48 +468,46 @@ The random PR-AUC floor is approximately the positive rate:
 0.0346
 ```
 
-The Random Forest PR-AUC is:
+The XGBoost PR-AUC is:
 
 ```text
-0.4270
+0.8571
 ```
 
-However, the model is not production-ready.
+This is more than 24 times the random floor, and roughly double the previous best (0.4270 for Random Forest without temporal features).
 
-The most important issue is recall:
+Recall has improved substantially:
 
 ```text
-Recall = 0.2523
+Recall = 0.6392
 ```
 
-This means the model catches only about 25% of actual next-lap pit stops at the selected threshold. In practical terms, it misses around 3 out of every 4 real pit-next-lap events.
+This means the model catches roughly 2 out of every 3 actual next-lap pit stops at the selected threshold. Compared with the earlier baseline (recall 0.2523), the model now misses far fewer real pit stops.
 
-Precision is very high:
+Precision remains high:
 
 ```text
-Precision = 0.9415
+Precision = 0.9140
 ```
 
-This means that when the model does predict a pit stop, it is usually correct. The model is conservative: it avoids false alarms, but it misses many true pit stops.
-
-For a real race strategy assistant, this tradeoff may not be ideal. A strategist might prefer more warnings, even if some are false alarms. That would require a lower threshold or a recall-targeted thresholding strategy.
+This means that when the model does predict a pit stop, it is correct 91% of the time. The threshold policy (`recall_target_0.60`) deliberately trades a small amount of precision for much higher recall, which is the right tradeoff for a strategy assistant that should flag genuine pit windows without overwhelming false alerts.
 
 ## 13. Per-Race Recall
 
-The Random Forest does not perform equally across all held-out races.
+The XGBoost model does not perform equally across all held-out races, but recall is much more consistent than the earlier Random Forest baseline.
 
-| Race | Actual pit-next-lap events | Recall |
-|---|---:|---:|
-| Abu Dhabi Grand Prix | 92 | 0.359 |
-| Chinese Grand Prix | 65 | 0.015 |
-| Dutch Grand Prix | 222 | 0.347 |
-| Hungarian Grand Prix | 147 | 0.259 |
-| Pre-Season Track Session | 47 | 0.021 |
-| Spanish Grand Prix | 192 | 0.224 |
+| Race | Actual pit-next-lap events | XGBoost Recall | Previous RF Recall |
+|---|---:|---:|---:|
+| Abu Dhabi Grand Prix | 92 | 0.435 | 0.359 |
+| Chinese Grand Prix | 65 | 0.738 | 0.015 |
+| Dutch Grand Prix | 222 | 0.676 | 0.347 |
+| Hungarian Grand Prix | 147 | 0.544 | 0.259 |
+| Pre-Season Track Session | 47 | 0.468 | 0.021 |
+| Spanish Grand Prix | 192 | 0.776 | 0.224 |
 
-This shows a generalization problem.
+The most dramatic improvements are in races where the earlier model almost completely failed. Chinese GP recall improved from 0.015 to 0.738, and the Pre-Season Track Session from 0.021 to 0.468. These gains come from the temporal lag and rolling features, which give the model visibility into recent pace trends and stint history.
 
-The model performs reasonably on some races, such as Abu Dhabi and Dutch GP, but almost fails to catch pit stops in Chinese GP and the Pre-Season Track Session. This suggests that pit strategy patterns can vary strongly by race, track, and session type.
+Some variation across races remains. Abu Dhabi (0.435) and Hungarian GP (0.544) still lag behind Spanish GP (0.776) and Chinese GP (0.738). This suggests that some races have pit strategy patterns that are harder to learn from historical data alone, possibly due to unique track characteristics or race conditions.
 
 ## 14. Streamlit App
 
@@ -605,59 +637,41 @@ The project has several strong engineering and machine learning choices:
 
 - Uses a race-grouped train/test split to reduce overly optimistic results.
 - Removes direct leakage columns before training.
-- Compares multiple model families instead of relying on one model.
+- Adds causal lag and rolling temporal features per (Driver, Race, Year) group, giving the model visibility into recent pace trends and stint history without leaking future information.
+- Compares seven model families (including LightGBM and XGBoost) instead of relying on one model.
+- Uses native `scale_pos_weight` in LightGBM and XGBoost for direct handling of class imbalance.
+- Applies isotonic probability calibration on out-of-fold predictions before threshold selection.
+- Uses a recall-targeted threshold policy (recall ≥ 0.60) rather than F1-max, making the operating point appropriate for real strategy decisions.
 - Uses ROC-AUC as the main ranking metric for separating pit-risk laps from normal laps.
 - Still reports PR-AUC as a supporting metric for the rare pit-next-lap class.
-- Tunes decision thresholds instead of assuming a default threshold of 0.5.
 - Saves model artifacts and evaluation reports for reproducibility.
-- Includes preprocessing tests for leakage, split correctness, missing values, and transformations.
+- Includes preprocessing tests for leakage, split correctness, missing values, temporal feature causality, and transformations.
 - Provides a Streamlit app for interactive use.
 
 ## 18. Current Limitations
 
-The model is a solid baseline, but it has clear limitations:
+The model is a strong prototype, but it has remaining limitations:
 
-- Recall is low, so many real pit stops are missed.
-- The model scores each lap mostly as an isolated row.
-- It does not yet use rolling or lag features from previous laps.
-- It does not include live race context such as weather, safety car, gaps, traffic, or undercut windows.
-- Performance varies strongly across races.
-- The current best model is useful for detecting high-confidence pit signals, not for catching every pit stop.
+- The Streamlit app sends a single-lap input with no prior history, so all lag and rolling features fall back to sentinel values at inference time. A live strategy tool would need to pass the previous N laps through the pipeline to use real temporal context.
+- Performance still varies across races: Abu Dhabi recall (0.435) and Hungarian GP recall (0.544) lag behind Spanish GP (0.776) and Chinese GP (0.738).
+- The model does not include live race context such as weather, safety car state, gaps to nearby cars, track status, or undercut window estimates.
+- There are no SHAP or feature-importance explanations in the app to show why the model predicted a high pit risk on a given lap.
 
 ## 19. Recommended Next Improvements
 
 The most useful next improvements are:
 
-1. Add lag and rolling features.
+1. Add rolling inference context for the app.
 
-   Examples:
-
-   ```text
-   LapTime_Delta over last 3 laps
-   rolling tyre degradation
-   stint progress by compound
-   recent position changes
-   ```
-
-   Pit strategy is sequential, so recent lap history should improve the model.
-
-2. Tune for higher recall.
-
-   Instead of maximizing F1, choose a threshold that reaches a target recall, such as:
+   The current app sends a single lap with no history, so temporal features fall back to sentinel values. A rolling inference mode would pass the previous N laps for the selected driver and race through the pipeline before generating the prediction for the current lap:
 
    ```text
-   recall >= 0.60
+   laps [L-3, L-2, L-1] → temporal features → prediction for lap L
    ```
 
-   This would create more alerts but miss fewer real pit stops.
+   This would unlock the full value of the lag and rolling features at inference time.
 
-3. Try stronger tabular models.
-
-   LightGBM or XGBoost may perform better than sklearn Gradient Boosting on this type of structured racing data.
-
-4. Improve race context.
-
-   Add features such as:
+2. Add live race context features.
 
    ```text
    gap to car ahead
@@ -668,20 +682,28 @@ The most useful next improvements are:
    pit window estimates
    ```
 
-5. Explain predictions.
+3. Add SHAP explanations.
 
-   Add feature importance or SHAP explanations to show why the model predicted high pit risk.
+   Add feature importance or SHAP values to show why the model predicted high pit risk on a specific lap. This would make the app more useful as an explanation and teaching tool.
+
+4. Ensemble the top models.
+
+   XGBoost, LightGBM, and Random Forest all achieve ROC-AUC above 0.987. Combining their calibrated probabilities (e.g. via a simple average or a stacked meta-learner) may push performance further.
 
 ## 20. Final Assessment
 
-Race Strategist is a complete and reproducible baseline for F1 pit-next-lap prediction.
+Race Strategist is a complete and reproducible F1 pit-next-lap prediction system with strong held-out performance.
 
 The machine learning pipeline is well structured:
 
 - The target is clearly defined.
 - Leakage is handled carefully.
+- Temporal features are computed causally per (Driver, Race, Year) group.
 - Evaluation uses race-grouped splits.
 - Metrics are appropriate for imbalanced classification.
-- The best model significantly beats the majority baseline.
+- Probabilities are isotonic-calibrated before threshold selection.
+- The best model significantly beats the majority baseline on every metric.
 
-The current Random Forest model is best understood as a high-precision pit-risk detector. When it predicts a pit stop, it is often correct, but it still misses many actual pit stops. The next major step is to improve recall with better temporal features and thresholding.
+The current XGBoost model catches roughly 2 out of every 3 actual pit stops on the held-out test set (recall 0.6392) while still being correct 91% of the time when it does predict a stop (precision 0.9140). PR-AUC reached 0.8571, more than double the earlier baseline of 0.4270 and 24 times above the random floor.
+
+The most impactful remaining improvement is a rolling inference mode in the app so that lag and rolling features reflect real prior-lap history rather than sentinel values.

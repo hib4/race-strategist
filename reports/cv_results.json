@@ -2,61 +2,120 @@
   {
     "name": "majority_baseline",
     "cv_pr_auc": 0.0316082892927866,
+    "cv_pr_auc_calibrated": 0.0316082892927866,
     "threshold": 1.1,
+    "oof_precision": 0.0,
+    "oof_recall": 0.0,
     "oof_f1": 0.0,
+    "achieved_target_recall": false,
     "best_params": {},
-    "fit_time_sec": 0.015739917755126953,
+    "fit_time_sec": 0.026106834411621094,
     "preprocessor_kind": "tree"
   },
   {
     "name": "logistic_regression",
-    "cv_pr_auc": 0.28089193491134923,
-    "threshold": 0.8698283755551557,
-    "oof_f1": 0.3121640453907005,
+    "cv_pr_auc": 0.3193126577259614,
+    "cv_pr_auc_calibrated": 0.3015045792505414,
+    "threshold": 0.1044176706827309,
+    "oof_precision": 0.2584116140051238,
+    "oof_recall": 0.6037509976057462,
+    "oof_f1": 0.361918430809292,
+    "achieved_target_recall": true,
     "best_params": {
       "model__C": 0.1,
       "model__penalty": "l2"
     },
-    "fit_time_sec": 3.689648151397705,
+    "fit_time_sec": 18.7608962059021,
     "preprocessor_kind": "scaled"
   },
   {
     "name": "decision_tree",
-    "cv_pr_auc": 0.3840984531333416,
-    "threshold": 0.9221453971283256,
-    "oof_f1": 0.4450641383152511,
+    "cv_pr_auc": 0.6168914666842287,
+    "cv_pr_auc_calibrated": 0.5982065617897757,
+    "threshold": 0.3919239904988123,
+    "oof_precision": 0.6358220810166799,
+    "oof_recall": 0.6388667198723065,
+    "oof_f1": 0.6373407643307101,
+    "achieved_target_recall": true,
     "best_params": {
-      "model__max_depth": 6,
-      "model__min_samples_leaf": 200
+      "model__max_depth": 16,
+      "model__min_samples_leaf": 50
     },
-    "fit_time_sec": 3.1851820945739746,
+    "fit_time_sec": 10.895196914672852,
     "preprocessor_kind": "tree"
   },
   {
     "name": "random_forest",
-    "cv_pr_auc": 0.41920971031302867,
-    "threshold": 0.6471671817385299,
-    "oof_f1": 0.4032105760146254,
+    "cv_pr_auc": 0.7246694895300296,
+    "cv_pr_auc_calibrated": 0.7016672727368952,
+    "threshold": 0.5612244897959182,
+    "oof_precision": 0.7313288069835111,
+    "oof_recall": 0.601755786113328,
+    "oof_f1": 0.6602451838874206,
+    "achieved_target_recall": true,
     "best_params": {
-      "model__max_depth": null,
+      "model__max_depth": 20,
       "model__max_features": "sqrt",
       "model__min_samples_leaf": 5,
       "model__n_estimators": 200
     },
-    "fit_time_sec": 40.19027304649353,
+    "fit_time_sec": 73.32103180885315,
     "preprocessor_kind": "tree"
   },
   {
     "name": "gradient_boosting",
-    "cv_pr_auc": 0.4153794253766465,
-    "threshold": 0.966306399515731,
-    "oof_f1": 0.38435565559890883,
+    "cv_pr_auc": 0.7600356677879959,
+    "cv_pr_auc_calibrated": 0.7321635739174652,
+    "threshold": 0.4868421052631579,
+    "oof_precision": 0.7476808905380334,
+    "oof_recall": 0.6432561851556265,
+    "oof_f1": 0.6915486915481944,
+    "achieved_target_recall": true,
+    "best_params": {
+      "model__learning_rate": 0.1,
+      "model__max_depth": 5,
+      "model__n_estimators": 200,
+      "model__subsample": 1.0
+    },
+    "fit_time_sec": 623.3061103820801,
+    "preprocessor_kind": "tree"
+  },
+  {
+    "name": "lightgbm",
+    "cv_pr_auc": 0.7606645223253763,
+    "cv_pr_auc_calibrated": 0.7391758538303733,
+    "threshold": 0.5112359550561798,
+    "oof_precision": 0.7684680218145761,
+    "oof_recall": 0.6185155626496409,
+    "oof_f1": 0.6853858058805583,
+    "achieved_target_recall": true,
     "best_params": {
       "model__learning_rate": 0.05,
-      "model__max_depth": 3,
-      "model__n_estimators": 200
+      "model__min_child_samples": 20,
+      "model__n_estimators": 400,
+      "model__num_leaves": 31,
+      "model__reg_lambda": 1.0
     },
-    "fit_time_sec": 94.16399693489075,
+    "fit_time_sec": 96.37462329864502,
+    "preprocessor_kind": "tree"
+  },
+  {
+    "name": "xgboost",
+    "cv_pr_auc": 0.7631983684056479,
+    "cv_pr_auc_calibrated": 0.7412765158387751,
+    "threshold": 0.48846153846153845,
+    "oof_precision": 0.7490791896869244,
+    "oof_recall": 0.6492418196328811,
+    "oof_f1": 0.6955964087211784,
+    "achieved_target_recall": true,
+    "best_params": {
+      "model__learning_rate": 0.05,
+      "model__max_depth": 8,
+      "model__min_child_weight": 5,
+      "model__n_estimators": 400,
+      "model__subsample": 0.8
+    },
+    "fit_time_sec": 16.759939193725586,
     "preprocessor_kind": "tree"
   }
 ]

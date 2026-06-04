@@ -7,6 +7,13 @@ Builds two preprocessor variants:
     Used with tree-based models.
 
 Splits are race-grouped so no race appears in both train and test.
+
+Also exposes `add_temporal_features` which adds causal per-(Driver, Race)
+lag / rolling features. All new feature values for row i in a (Driver, Race)
+group depend strictly on rows with LapNumber < i.LapNumber for the same
+(Driver, Race), so they are leakage-free across laps. Used both during
+training (called inside `make_race_grouped_split`) and at inference time
+(called by the Streamlit app on a single-row input).
 """
 
 from __future__ import annotations
@@ -33,7 +40,7 @@ TARGET = "WillPitNextLap"
 LEAKAGE_COLS = ["PitNextLap", "NextStint", "PitStop"]
 GROUP_COL = "Race"
 
-NUMERIC_COLS = [
+BASE_NUMERIC_COLS = [
     "LapNumber",
     "Stint",
     "TyreLife",
@@ -46,8 +53,35 @@ NUMERIC_COLS = [
     "Normalized_TyreLife",
     "Position_Change",
 ]
+
+# Causal lag / rolling features computed inside add_temporal_features.
+TEMPORAL_NUMERIC_COLS = [
+    "LapTime_lag1",
+    "LapTime_lag2",
+    "LapTime_lag3",
+    "LapTime_Delta_lag1",
+    "LapTime_Delta_lag2",
+    "LapTime_Delta_lag3",
+    "LapTime_rolling_mean_3",
+    "LapTime_rolling_std_3",
+    "LapTime_Delta_rolling_mean_3",
+    "LapTime_Delta_rolling_std_3",
+    "Cumulative_Degradation_rolling_mean_3",
+    "Position_lag1",
+    "Position_rolling_mean_3",
+    "Position_Change_lag1",
+    "LapTime_diff_from_rolling_mean3",
+    "Compound_changed_last_lap",
+    "Lap_history_count",
+]
+
+NUMERIC_COLS = BASE_NUMERIC_COLS + TEMPORAL_NUMERIC_COLS
 LOW_CARD_CAT_COLS = ["Compound"]
 HIGH_CARD_CAT_COLS = ["Driver", "Race"]
+
+# Fill value used for lag/rolling features when a row has no prior history.
+# `Lap_history_count` carries the "how much history is available" signal.
+TEMPORAL_FILL_VALUE = 0.0
 
 
 @dataclass
@@ -71,6 +105,93 @@ def drop_leakage_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df.drop(columns=[c for c in LEAKAGE_COLS if c in df.columns])
 
 
+def add_temporal_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Add per-(Driver, Race) causal lag/rolling features.
+
+    For each row, every new feature depends strictly on rows with smaller
+    `LapNumber` within the same (Driver, Race, Year) group. The (Year)
+    coordinate matters because the same `Race` name (e.g. "Abu Dhabi Grand
+    Prix") appears in multiple seasons and we must not let one year's lap
+    history bleed into another. The function is safe to call on the full
+    historical dataset before the train/test split and on single-row inference
+    inputs (which have no history, so all lag/rolling values fall back to the
+    `TEMPORAL_FILL_VALUE` sentinel while `Lap_history_count = 0` carries the
+    no-history signal).
+
+    Returns a new DataFrame sorted by (Driver, Race, Year, LapNumber) with a
+    fresh RangeIndex. The caller is responsible for not relying on the
+    original row order (the race-grouped split downstream uses positional
+    indices, so this is fine).
+    """
+    required = ["Driver", "Race", "Year", "LapNumber", "Compound"]
+    missing = [c for c in required if c not in df.columns]
+    if missing:
+        raise ValueError(f"add_temporal_features missing columns: {missing}")
+
+    out = (
+        df.sort_values(["Driver", "Race", "Year", "LapNumber"], kind="mergesort")
+        .reset_index(drop=True)
+    )
+
+    grouped = out.groupby(["Driver", "Race", "Year"], sort=False, group_keys=False)
+
+    def lag(col: str, k: int) -> pd.Series:
+        return grouped[col].shift(k)
+
+    def rolling_past_mean(col: str) -> pd.Series:
+        return grouped[col].transform(
+            lambda s: s.shift(1).rolling(3, min_periods=1).mean()
+        )
+
+    def rolling_past_std(col: str) -> pd.Series:
+        return grouped[col].transform(
+            lambda s: s.shift(1).rolling(3, min_periods=2).std()
+        )
+
+    out["LapTime_lag1"] = lag("LapTime (s)", 1)
+    out["LapTime_lag2"] = lag("LapTime (s)", 2)
+    out["LapTime_lag3"] = lag("LapTime (s)", 3)
+
+    out["LapTime_Delta_lag1"] = lag("LapTime_Delta", 1)
+    out["LapTime_Delta_lag2"] = lag("LapTime_Delta", 2)
+    out["LapTime_Delta_lag3"] = lag("LapTime_Delta", 3)
+
+    out["Position_lag1"] = lag("Position", 1)
+    out["Position_Change_lag1"] = lag("Position_Change", 1)
+
+    out["LapTime_rolling_mean_3"] = rolling_past_mean("LapTime (s)")
+    out["LapTime_rolling_std_3"] = rolling_past_std("LapTime (s)")
+    out["LapTime_Delta_rolling_mean_3"] = rolling_past_mean("LapTime_Delta")
+    out["LapTime_Delta_rolling_std_3"] = rolling_past_std("LapTime_Delta")
+    out["Cumulative_Degradation_rolling_mean_3"] = rolling_past_mean(
+        "Cumulative_Degradation"
+    )
+    out["Position_rolling_mean_3"] = rolling_past_mean("Position")
+
+    # Slowdown signal: how much the current lap differs from the recent average.
+    out["LapTime_diff_from_rolling_mean3"] = (
+        out["LapTime (s)"] - out["LapTime_rolling_mean_3"]
+    )
+
+    prev_compound = grouped["Compound"].shift(1)
+    out["Compound_changed_last_lap"] = (
+        prev_compound.notna() & (out["Compound"].astype(str) != prev_compound.astype(str))
+    ).astype(int)
+
+    # Number of past laps available, clipped to [0, 3] — the window we look back.
+    out["Lap_history_count"] = grouped.cumcount().clip(upper=3).astype(int)
+
+    # Fill NaN created by lag/rolling on the leading laps of each group.
+    fill_cols = [
+        c for c in TEMPORAL_NUMERIC_COLS
+        if c not in {"Compound_changed_last_lap", "Lap_history_count"}
+    ]
+    for col in fill_cols:
+        out[col] = out[col].fillna(TEMPORAL_FILL_VALUE).astype(float)
+
+    return out
+
+
 def make_race_grouped_split(
     df: pd.DataFrame,
     test_size: float = 0.2,
@@ -79,6 +200,7 @@ def make_race_grouped_split(
     """Hold out ~test_size of rows by race so no race spans train and test."""
     df = drop_leakage_columns(df)
     df["Compound"] = df["Compound"].fillna("UNKNOWN")
+    df = add_temporal_features(df)
 
     y = df[TARGET].astype(int)
     groups = df[GROUP_COL]

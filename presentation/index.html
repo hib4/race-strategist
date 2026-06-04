@@ -27,8 +27,8 @@
             </div>
             <div class="hook-metric">
               <span>ROC-AUC</span>
-              <strong>0.894</strong>
-              <small>Random Forest on race-grouped hold-out data</small>
+              <strong>0.988</strong>
+              <small>XGBoost on race-grouped hold-out data</small>
             </div>
           </div>
           <div class="hero-members" aria-label="Project group members">
@@ -223,13 +223,18 @@
               <b>Clean inputs</b>
               <p>Fill missing compound values as `UNKNOWN`.</p>
             </div>
-            <div class="pipe-step">
+            <div class="pipe-step pipe-step--red">
               <span>04</span>
+              <b>Add temporal features</b>
+              <p>Causal lag and rolling features per (Driver, Race, Year).</p>
+            </div>
+            <div class="pipe-step">
+              <span>05</span>
               <b>Encode features</b>
               <p>Scale numeric fields or encode categories depending on model type.</p>
             </div>
-            <div class="pipe-step pipe-step--finish">
-              <span>05</span>
+            <div class="pipe-step pipe-step--red pipe-step--finish">
+              <span>06</span>
               <b>Race-grouped split</b>
               <p>No race appears in both train and test.</p>
             </div>
@@ -241,7 +246,7 @@
             </div>
             <div>
               <h3>Tree path</h3>
-              <p>Numeric passthrough + OrdinalEncoder for Decision Tree, Random Forest, Gradient Boosting.</p>
+              <p>Numeric passthrough + OrdinalEncoder for Decision Tree, Random Forest, and XGBoost.</p>
             </div>
             <div>
               <h3>Evaluation guardrail</h3>
@@ -260,25 +265,25 @@
             <h2>Compare classical models and select the strongest pit-risk model.</h2>
           </div>
           <div class="model-grid">
+            <div class="model-card winner">
+              <span>Best ROC-AUC</span>
+              <strong>XGBoost</strong>
+              <p>Histogram-based boosting with scale_pos_weight for the rare pit-stop class.</p>
+            </div>
             <div class="model-card">
-              <span>Linear</span>
-              <strong>Logistic Regression</strong>
-              <p>Fast, interpretable, good sanity-check baseline.</p>
+              <span>Ensemble</span>
+              <strong>Random Forest</strong>
+              <p>Many trees vote together, improving stability and ranking quality.</p>
             </div>
             <div class="model-card">
               <span>Tree</span>
               <strong>Decision Tree</strong>
               <p>Captures simple thresholds such as tyre life and race progress.</p>
             </div>
-            <div class="model-card winner">
-              <span>Best ROC-AUC</span>
-              <strong>Random Forest</strong>
-              <p>Many trees vote together, improving stability and ranking quality.</p>
-            </div>
             <div class="model-card">
-              <span>Boosted</span>
-              <strong>Gradient Boosting</strong>
-              <p>Sequential trees correct previous errors.</p>
+              <span>Linear</span>
+              <strong>Logistic Regression</strong>
+              <p>Fast, interpretable, good sanity-check baseline.</p>
             </div>
           </div>
           <div class="training-flow">
@@ -286,13 +291,15 @@
             <i></i>
             <span>GridSearchCV</span>
             <i></i>
-            <span>ROC-AUC scoring</span>
+            <span>PR-AUC scoring</span>
             <i></i>
-            <span>OOF threshold tuning</span>
+            <span>Isotonic calibration</span>
+            <i></i>
+            <span>Recall target 0.60</span>
           </div>
           <div class="why-classical">
-            <strong>Why Random Forest wins</strong>
-            <p>It has the best ROC-AUC, strong precision, stable ensemble behavior, and fits structured race data without needing deep sequence or image architectures.</p>
+            <strong>Why XGBoost wins</strong>
+            <p>Combined with causal temporal features and a recall-targeted threshold, XGBoost delivers ROC-AUC 0.988, recall 0.639, and PR-AUC 0.857 on the race-grouped hold-out set — the strongest result across all four models compared.</p>
           </div>
         </div>
       </section>
@@ -303,7 +310,7 @@
         <div class="slide__inner">
           <div class="slide-header">
             <span>Model Evidence</span>
-            <h2>ROC curves show Random Forest separates pit-risk laps best.</h2>
+            <h2>ROC curves show XGBoost separates pit-risk laps best.</h2>
           </div>
           <div class="chart-layout">
             <figure class="report-chart">
@@ -311,8 +318,8 @@
             </figure>
             <div class="chart-takeaway">
               <span class="mini-label">Hold-out result</span>
-              <strong>ROC-AUC 0.894</strong>
-              <p>Random Forest has the strongest ranking quality on the race-grouped hold-out set, ahead of Gradient Boosting, Logistic Regression, and Decision Tree.</p>
+              <strong>ROC-AUC 0.988</strong>
+              <p>XGBoost has the strongest ranking quality on the race-grouped hold-out set, ahead of Random Forest, Decision Tree, and Logistic Regression.</p>
             </div>
           </div>
         </div>
@@ -324,15 +331,15 @@
         <div class="slide__inner">
           <div class="slide-header">
             <span>Evaluation</span>
-            <h2>The model finds real signal, but recall is the main weakness.</h2>
+            <h2>The model finds strong pit-stop signal across four compared classifiers.</h2>
           </div>
           <div class="performance-layout">
             <div class="performance-table" role="table" aria-label="Model performance summary">
               <div class="table-row table-head"><span>Model</span><span>ROC-AUC</span><span>F1</span><span>Precision</span><span>Recall</span></div>
-              <div class="table-row winner-row"><span>Random Forest</span><span>0.894</span><span>0.398</span><span>0.941</span><span>0.252</span></div>
-              <div class="table-row"><span>Gradient Boosting</span><span>0.874</span><span>0.338</span><span>0.957</span><span>0.205</span></div>
-              <div class="table-row"><span>Logistic Regression</span><span>0.856</span><span>0.244</span><span>0.737</span><span>0.146</span></div>
-              <div class="table-row"><span>Decision Tree</span><span>0.825</span><span>0.413</span><span>0.833</span><span>0.275</span></div>
+              <div class="table-row winner-row"><span>XGBoost</span><span>0.988</span><span>0.752</span><span>0.914</span><span>0.639</span></div>
+              <div class="table-row"><span>Random Forest</span><span>0.987</span><span>0.703</span><span>0.900</span><span>0.577</span></div>
+              <div class="table-row"><span>Decision Tree</span><span>0.932</span><span>0.721</span><span>0.829</span><span>0.638</span></div>
+              <div class="table-row"><span>Logistic Regression</span><span>0.916</span><span>0.388</span><span>0.365</span><span>0.413</span></div>
             </div>
             <div class="confusion-box">
               <h3>Confusion matrix logic</h3>
@@ -345,10 +352,10 @@
           </div>
           <div class="metric-explainers">
             <span><b>ROC-AUC</b> ranking quality across pit and no-pit laps</span>
-            <span><b>Precision</b> fewer false alerts</span>
-            <span><b>Recall</b> fewer missed pit stops</span>
-            <span><b>F1</b> balances precision and recall</span>
-            <span><b>Threshold</b> converts probability into a pit/no-pit call</span>
+            <span><b>Recall 0.639</b> catches ~2 in 3 real pit stops — up from 0.252</span>
+            <span><b>Precision 0.914</b> correct 91% of the time when predicting a pit</span>
+            <span><b>Threshold policy</b> recall ≥ 0.60 on calibrated OOF probabilities</span>
+            <span><b>PR-AUC 0.857</b> rare-event detection, 24× above random baseline</span>
           </div>
         </div>
       </section>
@@ -379,14 +386,14 @@
                 <small>pit risk probability</small>
               </div>
               <div class="threshold-line">
-                <i style="left: 64.7%"></i>
-                <b style="left: 64.7%">threshold 0.647</b>
+                <i style="left: 48.8%"></i>
+                <b style="left: 48.8%">threshold 0.488</b>
                 <strong style="left: 72%">0.72</strong>
               </div>
             </div>
             <div class="output-card">
               <span class="mini-label">Decision rule</span>
-              <h3>0.72 &gt;= 0.647</h3>
+              <h3>0.72 &gt;= 0.488</h3>
               <strong>Predict: PIT NEXT LAP</strong>
               <p>The model does not "know" the future. It estimates risk from patterns learned in historical lap data.</p>
             </div>
@@ -396,7 +403,7 @@
             <i></i>
             <span>Preprocessing pipeline</span>
             <i></i>
-            <span>Random Forest</span>
+            <span>XGBoost + calibration</span>
             <i></i>
             <span>Probability</span>
             <i></i>
@@ -417,24 +424,23 @@
           <div class="conclusion-grid">
             <div>
               <h3>What worked</h3>
-              <p>Race-grouped evaluation, leakage control, classical ML baselines, threshold tuning, and a Streamlit prototype produced a credible pit-risk detector.</p>
+              <p>Race-grouped evaluation, leakage control, causal temporal features, XGBoost, isotonic calibration, and a recall-targeted threshold produced a credible pit-risk detector.</p>
             </div>
             <div>
               <h3>What it means</h3>
-              <p>The Random Forest ranks pit-risk laps best with ROC-AUC `0.894` on the race-grouped hold-out set.</p>
+              <p>XGBoost ranks pit-risk laps best with ROC-AUC 0.988, recall 0.639, and PR-AUC 0.857 on the race-grouped hold-out set.</p>
             </div>
             <div>
               <h3>What still limits it</h3>
-              <p>Recall is too low for live strategy. The model needs more temporal context and a recall-targeted threshold.</p>
+              <p>The app uses no prior-lap history at inference time, so temporal features fall back to sentinels. Live strategy also needs safety car state, gaps, and weather.</p>
             </div>
           </div>
           <div class="next-steps">
             <span>Next technical steps</span>
-            <strong>lag features</strong>
-            <strong>recall target</strong>
-            <strong>LightGBM / XGBoost</strong>
+            <strong>rolling inference</strong>
             <strong>race context</strong>
-            <strong>explanations</strong>
+            <strong>SHAP explanations</strong>
+            <strong>ensemble</strong>
           </div>
           <p class="closing-line">Race Strategist uses historical F1 lap data to create a clear and testable workflow for predicting whether a driver will pit on the next lap.</p>
         </div>

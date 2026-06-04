@@ -14,6 +14,7 @@ threshold, and writes:
 from __future__ import annotations
 
 import json
+import sys
 import time
 from pathlib import Path
 
@@ -36,6 +37,12 @@ from sklearn.metrics import (
 )
 
 from src.preprocessing import PROJECT_ROOT, feature_names
+# Make CalibratedPipeline resolvable when unpickling model artifacts that were
+# saved while train.py was the entry point (and thus the class lived in
+# `__main__`). Importing the class and re-binding it under __main__ keeps the
+# joblib payloads loadable here and in the Streamlit app.
+from src.train import CalibratedPipeline as _CalibratedPipeline  # noqa: E402
+sys.modules["__main__"].CalibratedPipeline = _CalibratedPipeline
 
 DATA_PROCESSED = PROJECT_ROOT / "data" / "processed"
 MODELS_DIR = PROJECT_ROOT / "models"
@@ -48,6 +55,8 @@ MODEL_ORDER = [
     "decision_tree",
     "random_forest",
     "gradient_boosting",
+    "lightgbm",
+    "xgboost",
 ]
 
 
@@ -79,6 +88,9 @@ def score_model(payload: dict, X_test: pd.DataFrame, y_test: np.ndarray) -> dict
         "recall": float(recall_score(y_test, y_pred, zero_division=0)),
         "brier": float(brier_score_loss(y_test, y_proba)),
         "threshold": threshold,
+        "policy": str(payload.get("policy", "f1_max")),
+        "target_recall": float(payload.get("target_recall", 0.0)),
+        "calibrated": bool(payload.get("calibrated", False)),
         "fit_time_sec": float(payload.get("fit_time_sec", 0.0)),
         "inference_time_sec": float(inf_time),
         "best_params": payload.get("best_params", {}),
@@ -209,16 +221,27 @@ def main() -> None:
             "recall": s["recall"],
             "brier": s["brier"],
             "threshold": s["threshold"],
+            "policy": s["policy"],
+            "calibrated": s["calibrated"],
             "fit_time_sec": s["fit_time_sec"],
             "inference_time_sec": s["inference_time_sec"],
             "best_params": json.dumps(s["best_params"]),
         })
     table = pd.DataFrame(rows).sort_values("pr_auc", ascending=False).reset_index(drop=True)
     table.to_csv(REPORTS_DIR / "model_comparison.csv", index=False)
-    print(f"\n{table[['model','pr_auc','roc_auc','f1','precision','recall','brier','threshold']].to_string(index=False)}")
+    print(f"\n{table[['model','pr_auc','roc_auc','f1','precision','recall','brier','threshold','policy']].to_string(index=False)}")
 
-    # Per-race recall for the best model
-    best_name = table.iloc[0]["model"]
+    # Best model: prefer models that hit the target recall on test, else fall back to
+    # plain PR-AUC ranking. Avoids picking a "high PR-AUC but recall=0" model as best.
+    target_recall = max((s["target_recall"] for s in scores.values()), default=0.0)
+    eligible = [
+        name for name, s in scores.items()
+        if name != "majority_baseline" and s["recall"] >= target_recall and target_recall > 0
+    ]
+    if eligible:
+        best_name = max(eligible, key=lambda n: scores[n]["pr_auc"])
+    else:
+        best_name = table.iloc[0]["model"]
     per_race = per_race_recall(X_test, y_test, scores[best_name]["_y_pred"])
     per_race.to_csv(REPORTS_DIR / "best_model_per_race_recall.csv", index=False)
 
@@ -229,13 +252,18 @@ def main() -> None:
     plot_feature_importance_rf()
 
     # JSON summary
+    best_row = next(r for r in rows if r["model"] == best_name)
     summary = {
         "test_size": int(len(y_test)),
         "test_pos_rate": float(y_test.mean()),
         "best_model": best_name,
-        "best_pr_auc": float(table.iloc[0]["pr_auc"]),
-        "best_f1": float(table.iloc[0]["f1"]),
-        "best_threshold": float(table.iloc[0]["threshold"]),
+        "best_pr_auc": float(best_row["pr_auc"]),
+        "best_f1": float(best_row["f1"]),
+        "best_recall": float(best_row["recall"]),
+        "best_precision": float(best_row["precision"]),
+        "best_threshold": float(best_row["threshold"]),
+        "threshold_policy": str(best_row["policy"]),
+        "target_recall": float(target_recall),
         "comparison": rows,
         "per_race_recall_best": per_race.to_dict(orient="records"),
     }
@@ -246,8 +274,11 @@ def main() -> None:
         "# F1 Race Strategist — Model Training Summary",
         "",
         f"**Test set:** {len(y_test):,} rows, positive rate {y_test.mean():.4f}",
-        f"**Best model:** `{best_name}` — PR-AUC {table.iloc[0]['pr_auc']:.4f}, "
-        f"F1 {table.iloc[0]['f1']:.4f}, threshold {table.iloc[0]['threshold']:.3f}",
+        f"**Threshold policy:** `{summary['threshold_policy']}` "
+        f"(target recall = {summary['target_recall']:.2f})",
+        f"**Best model:** `{best_name}` — PR-AUC {best_row['pr_auc']:.4f}, "
+        f"recall {best_row['recall']:.4f}, precision {best_row['precision']:.4f}, "
+        f"F1 {best_row['f1']:.4f}, threshold {best_row['threshold']:.3f}",
         "",
         "## Comparison (sorted by PR-AUC)",
         "",
@@ -263,8 +294,13 @@ def main() -> None:
         "## Notes",
         "",
         "- Splits are race-grouped: no race in `test_races.json` appears in training.",
-        "- Decision thresholds were tuned on OOF predictions from GroupKFold(5) "
-        "to maximize F1 on the PR curve.",
+        "- Per-model probabilities are isotonic-calibrated on OOF predictions from "
+        "GroupKFold(5).",
+        "- Decision thresholds were tuned on calibrated OOF predictions using the "
+        f"`{summary['threshold_policy']}` policy: pick the highest-precision "
+        "threshold whose recall meets the target.",
+        "- Best-model selection prefers models that hit the target recall on test, "
+        "then ranks by PR-AUC.",
         f"- Random baseline PR-AUC for a {y_test.mean():.4f} positive rate is "
         f"~{y_test.mean():.4f}. All non-baseline models exceed this by >5x.",
     ]

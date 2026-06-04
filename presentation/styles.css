@@ -820,7 +820,7 @@ h1 {
 
 .pipe-step {
   position: relative;
-  min-height: 330px;
+  height: 330px;
   padding: 30px;
 }
 
@@ -1268,6 +1268,12 @@ h1 {
 .slide--prototype .threshold-line strong {
   top: -52px;
   color: var(--ink);
+}
+
+.slide--prototype .threshold-line strong::after {
+  content: "|";
+  display: block;
+  text-align: center;
 }
 
 .output-card h3 {

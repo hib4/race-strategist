@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +11,15 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from src.preprocessing import add_temporal_features  # noqa: E402
+from src.train import CalibratedPipeline as _CalibratedPipeline  # noqa: E402
+
+# Joblib payloads saved while train.py ran as __main__ reference
+# `__main__.CalibratedPipeline`. Alias the imported class into the current
+# __main__ namespace so unpickling succeeds.
+sys.modules["__main__"].CalibratedPipeline = _CalibratedPipeline
 
 
 APP_DIR = Path(__file__).resolve().parent
@@ -41,6 +51,7 @@ MODEL_INPUT_COLUMNS = [
     "Position_Change",
 ]
 COMPOUNDS = ["SOFT", "MEDIUM", "HARD", "INTERMEDIATE", "WET", "UNKNOWN"]
+DISPLAY_MODELS = {"xgboost", "random_forest", "decision_tree", "logistic_regression"}
 
 RED = "#da291c"
 RED_DARK = "#9d2211"
@@ -576,12 +587,13 @@ def load_model_payload() -> tuple[dict[str, Any] | None, str | None, str | None]
 
 
 def model_feature_columns(payload: dict[str, Any] | None) -> list[str]:
-    if not payload:
-        return MODEL_INPUT_COLUMNS
-    pipe = payload.get("pipeline")
-    if pipe is not None and hasattr(pipe, "feature_names_in_"):
-        return list(pipe.feature_names_in_)
-    return MODEL_INPUT_COLUMNS
+    """Return the columns the user-facing form should expose.
+
+    The model pipeline also expects temporal lag/rolling features, but those
+    are derived from the user-facing inputs by `add_temporal_features` at
+    predict time, so the UI never asks the user to fill them in.
+    """
+    return list(MODEL_INPUT_COLUMNS)
 
 
 def dataset_defaults(df: pd.DataFrame | None) -> dict[str, Any]:
@@ -679,10 +691,13 @@ def coerce_input_row(values: dict[str, Any], columns: list[str], defaults: dict[
 def predict(payload: dict[str, Any], row: pd.DataFrame) -> dict[str, Any]:
     pipe = payload["pipeline"]
     threshold = float(payload.get("threshold", 0.5))
+    # Single-lap form input has no prior history; add_temporal_features fills
+    # all lag/rolling columns with sentinel values (Lap_history_count=0).
+    row_with_temporal = add_temporal_features(row)
     if hasattr(pipe, "predict_proba"):
-        probability = float(pipe.predict_proba(row)[:, 1][0])
+        probability = float(pipe.predict_proba(row_with_temporal)[:, 1][0])
     else:
-        probability = float(pipe.predict(row)[0])
+        probability = float(pipe.predict(row_with_temporal)[0])
     prediction = int(probability >= threshold)
     return {
         "probability": probability,
@@ -703,9 +718,9 @@ def confidence_label(probability: float, threshold: float) -> str:
 
 def strategy_explanation(probability: float, prediction: int) -> str:
     if prediction and probability >= 0.75:
-        return "The current tire age, degradation, and race progress suggest that a pit stop is strategically likely soon."
+        return "The current tire age, pace trend, degradation, and race progress suggest that a pit stop is strategically likely soon."
     if prediction:
-        return "The model sees enough pit-stop signal in the current lap context to recommend watching for a stop next lap."
+        return "The model sees enough pit-stop signal in the current lap context — including recent lap-time trends — to recommend watching for a stop next lap."
     if probability <= 0.25:
         return "The model suggests the driver is likely to continue the current stint."
     return "The model leans toward staying out, but the probability is close enough to monitor tire life and lap-time loss."
@@ -755,7 +770,7 @@ def page_home(df: pd.DataFrame | None, payload: dict[str, Any] | None, model_nam
     with c3:
         html_card(
             "How it works",
-            "The app sends raw lap conditions into a saved classical ML pipeline, then applies the model's tuned decision threshold to produce a strategy signal.",
+            "The app sends lap conditions — including recent pace trends and tyre-life history — into a saved XGBoost pipeline calibrated for high recall, then applies the model's tuned decision threshold to produce a strategy signal.",
         )
 
     section_break()
@@ -1043,6 +1058,8 @@ def page_performance() -> None:
 
     summary = load_json(str(REPORTS_DIR / "training_summary.json"))
     comparison = load_csv(str(REPORTS_DIR / "model_comparison.csv"))
+    if comparison is not None and "model" in comparison.columns:
+        comparison = comparison[comparison["model"].isin(DISPLAY_MODELS)].copy()
     best_row = best_roc_auc_row(summary, comparison)
 
     if summary or best_row is not None:
