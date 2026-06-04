@@ -257,14 +257,9 @@
         <div class="slide__inner">
           <div class="slide-header">
             <span>Training Approach</span>
-            <h2>Compare classical models and select the strongest baseline.</h2>
+            <h2>Compare classical models and select the strongest pit-risk model.</h2>
           </div>
           <div class="model-grid">
-            <div class="model-card baseline">
-              <span>Baseline</span>
-              <strong>Majority Class</strong>
-              <p>Shows the floor: what happens if the system always predicts no pit.</p>
-            </div>
             <div class="model-card">
               <span>Linear</span>
               <strong>Logistic Regression</strong>
@@ -336,9 +331,8 @@
               <div class="table-row table-head"><span>Model</span><span>ROC-AUC</span><span>F1</span><span>Precision</span><span>Recall</span></div>
               <div class="table-row winner-row"><span>Random Forest</span><span>0.894</span><span>0.398</span><span>0.941</span><span>0.252</span></div>
               <div class="table-row"><span>Gradient Boosting</span><span>0.874</span><span>0.338</span><span>0.957</span><span>0.205</span></div>
-              <div class="table-row"><span>Decision Tree</span><span>0.825</span><span>0.413</span><span>0.833</span><span>0.275</span></div>
               <div class="table-row"><span>Logistic Regression</span><span>0.856</span><span>0.244</span><span>0.737</span><span>0.146</span></div>
-              <div class="table-row muted-row"><span>Majority Baseline</span><span>N/A</span><span>0.000</span><span>0.000</span><span>0.000</span></div>
+              <div class="table-row"><span>Decision Tree</span><span>0.825</span><span>0.413</span><span>0.833</span><span>0.275</span></div>
             </div>
             <div class="confusion-box">
               <h3>Confusion matrix logic</h3>
@@ -452,28 +446,18 @@
         <div class="slide__inner">
           <div class="slide-header">
             <span>References</span>
-            <h2>Placeholder sources for final citation cleanup.</h2>
+            <h2>References and project links.</h2>
           </div>
           <div class="references-grid">
             <div>
-              <span>Data</span>
-              <strong>FastF1 / race timing data</strong>
-              <p>Placeholder for dataset access details, race coverage, and extraction notes.</p>
+              <span>Dataset</span>
+              <strong>F1 Strategy Dataset</strong>
+              <p><a href="https://kaggle.com/datasets/aadigupta1601/f1-strategy-dataset-pit-stop-prediction/">https://kaggle.com/datasets/aadigupta1601/f1-strategy-dataset-pit-stop-prediction/</a></p>
             </div>
             <div>
-              <span>Methods</span>
-              <strong>scikit-learn documentation</strong>
-              <p>Placeholder for model, preprocessing, cross-validation, and metric references.</p>
-            </div>
-            <div>
-              <span>Domain</span>
-              <strong>F1 strategy references</strong>
-              <p>Placeholder for pit stop strategy, tyre degradation, and race context sources.</p>
-            </div>
-            <div>
-              <span>Project</span>
-              <strong>Generated reports</strong>
-              <p>Placeholder for model comparison tables, ROC curves, and per-race recall outputs.</p>
+              <span>Application</span>
+              <strong>Race Strategist Streamlit App</strong>
+              <p><a href="https://race-strategist.streamlit.app/">https://race-strategist.streamlit.app/</a></p>
             </div>
           </div>
         </div>

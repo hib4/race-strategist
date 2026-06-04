@@ -898,8 +898,8 @@ h1 {
   position: relative;
   z-index: 2;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 18px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
 }
 
 .model-card {
@@ -928,10 +928,6 @@ h1 {
 
 .model-card.winner span {
   color: var(--ink);
-}
-
-.model-card.baseline {
-  opacity: 0.74;
 }
 
 .training-flow {
@@ -988,6 +984,7 @@ h1 {
   z-index: 2;
   display: grid;
   grid-template-columns: 1.12fr 0.88fr;
+  align-items: start;
   gap: 40px;
 }
 
@@ -1006,7 +1003,7 @@ h1 {
 }
 
 .table-row span {
-  padding: 19px 18px;
+  padding: 24px 18px;
   color: var(--body);
   font-size: 22px;
   border-right: 1px solid var(--line-soft);
@@ -1031,10 +1028,6 @@ h1 {
 .winner-row span {
   color: var(--ink);
   font-weight: 850;
-}
-
-.muted-row {
-  opacity: 0.58;
 }
 
 .confusion-box {
@@ -1499,6 +1492,14 @@ h1 {
 .references-grid p {
   margin-bottom: 0;
   font-size: 25px;
+}
+
+.references-grid a {
+  color: var(--ink);
+  overflow-wrap: anywhere;
+  text-decoration: underline;
+  text-decoration-color: var(--red);
+  text-underline-offset: 7px;
 }
 
 @media screen {

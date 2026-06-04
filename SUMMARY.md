@@ -75,7 +75,7 @@ This creates a class imbalance problem:
 - The minority class is "pit next lap."
 - A naive model can look accurate by predicting "no pit" almost all the time.
 
-Because of this, the project does not focus on plain accuracy. It uses metrics that are better for rare-event prediction, especially PR-AUC, precision, recall, and F1.
+Because of this, the project does not focus on plain accuracy. It uses ranking and classification metrics that are better for rare-event prediction, especially ROC-AUC, precision, recall, and F1. PR-AUC is still reported as a supporting metric for the rare positive class.
 
 ## 4. Main Features Used By The Model
 
@@ -279,13 +279,13 @@ This means each validation fold contains whole races that are not in the trainin
 
 The project uses `GridSearchCV` to try different model settings.
 
-The scoring metric is:
+The cross-validation scoring metric used during training is:
 
 ```text
 average_precision
 ```
 
-Average precision is the same idea as PR-AUC. It is useful for imbalanced classification because it focuses on how well the model finds the rare positive class.
+Average precision is the same idea as PR-AUC. It is useful for imbalanced classification because it focuses on how well the model finds the rare positive class. In this summary, the main headline metric is ROC-AUC because it shows how well the model ranks pit-risk laps above no-pit laps across thresholds.
 
 ### Step 3: Threshold Tuning
 
@@ -323,7 +323,17 @@ The evaluation code is in:
 src/evaluate.py
 ```
 
-The project reports several metrics.
+### ROC-AUC
+
+ROC-AUC measures how well the model ranks positive examples above negative examples.
+
+It answers:
+
+```text
+How well does the model rank pit-next-lap cases above no-pit cases?
+```
+
+This is the main metric focus in this summary because the project is primarily evaluating whether the model can separate high-risk pit laps from normal laps.
 
 ### PR-AUC
 
@@ -335,13 +345,7 @@ It answers:
 How well does the model find rare pit-stop events while avoiding false alarms?
 ```
 
-This is the most important metric in this project because pit stops are rare.
-
-### ROC-AUC
-
-ROC-AUC measures how well the model ranks positive examples above negative examples.
-
-It is useful, but it can look strong even when rare-event recall is weak. For this project, PR-AUC gives a more honest picture.
+PR-AUC is still useful because pit stops are rare, but it is treated here as a supporting diagnostic rather than the headline metric.
 
 ### Precision
 
@@ -385,15 +389,15 @@ Lower is better.
 
 Current held-out test results are:
 
-| Model | PR-AUC | ROC-AUC | F1 | Precision | Recall | Brier | Threshold |
+| Model | ROC-AUC | PR-AUC | F1 | Precision | Recall | Brier | Threshold |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Random Forest | 0.4270 | 0.8938 | 0.3979 | 0.9415 | 0.2523 | 0.0361 | 0.647 |
-| Gradient Boosting | 0.4185 | 0.8741 | 0.3380 | 0.9573 | 0.2052 | 0.1564 | 0.966 |
-| Decision Tree | 0.3935 | 0.8252 | 0.4130 | 0.8333 | 0.2745 | 0.1255 | 0.922 |
-| Logistic Regression | 0.2942 | 0.8559 | 0.2443 | 0.7368 | 0.1464 | 0.0956 | 0.870 |
-| Majority Baseline | 0.0346 | n/a | 0.0000 | 0.0000 | 0.0000 | 0.0346 | 1.100 |
+| Random Forest | 0.8938 | 0.4270 | 0.3979 | 0.9415 | 0.2523 | 0.0361 | 0.647 |
+| Gradient Boosting | 0.8741 | 0.4185 | 0.3380 | 0.9573 | 0.2052 | 0.1564 | 0.966 |
+| Logistic Regression | 0.8559 | 0.2942 | 0.2443 | 0.7368 | 0.1464 | 0.0956 | 0.870 |
+| Decision Tree | 0.8252 | 0.3935 | 0.4130 | 0.8333 | 0.2745 | 0.1255 | 0.922 |
+| Majority Baseline | n/a | 0.0346 | 0.0000 | 0.0000 | 0.0000 | 0.0346 | 1.100 |
 
-The best model by PR-AUC is:
+The best model by ROC-AUC is:
 
 ```text
 Random Forest
@@ -403,8 +407,8 @@ Its test performance:
 
 | Metric | Value |
 |---|---:|
-| PR-AUC | 0.4270 |
 | ROC-AUC | 0.8938 |
+| PR-AUC | 0.4270 |
 | F1 | 0.3979 |
 | Precision | 0.9415 |
 | Recall | 0.2523 |
@@ -413,6 +417,16 @@ Its test performance:
 ## 12. How To Interpret The Results
 
 The Random Forest model is much better than random guessing.
+
+The main result is the Random Forest ROC-AUC:
+
+```text
+0.8938
+```
+
+This means the model usually ranks actual pit-next-lap situations above no-pit situations. In other words, the model has learned real pit-stop signal from the data.
+
+As a supporting rare-event metric, the Random Forest PR-AUC is also much higher than the random PR-AUC floor.
 
 The random PR-AUC floor is approximately the positive rate:
 
@@ -425,8 +439,6 @@ The Random Forest PR-AUC is:
 ```text
 0.4270
 ```
-
-That means the model has learned real pit-stop signal from the data.
 
 However, the model is not production-ready.
 
@@ -594,7 +606,8 @@ The project has several strong engineering and machine learning choices:
 - Uses a race-grouped train/test split to reduce overly optimistic results.
 - Removes direct leakage columns before training.
 - Compares multiple model families instead of relying on one model.
-- Uses PR-AUC, which is appropriate for rare pit-stop events.
+- Uses ROC-AUC as the main ranking metric for separating pit-risk laps from normal laps.
+- Still reports PR-AUC as a supporting metric for the rare pit-next-lap class.
 - Tunes decision thresholds instead of assuming a default threshold of 0.5.
 - Saves model artifacts and evaluation reports for reproducibility.
 - Includes preprocessing tests for leakage, split correctness, missing values, and transformations.
@@ -672,4 +685,3 @@ The machine learning pipeline is well structured:
 - The best model significantly beats the majority baseline.
 
 The current Random Forest model is best understood as a high-precision pit-risk detector. When it predicts a pit stop, it is often correct, but it still misses many actual pit stops. The next major step is to improve recall with better temporal features and thresholding.
-

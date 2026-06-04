@@ -529,6 +529,35 @@ def load_csv(path: str) -> pd.DataFrame | None:
         return None
 
 
+def format_metric_value(value: Any) -> str:
+    if isinstance(value, (int, float, np.floating)) and not pd.isna(value):
+        return f"{float(value):.3f}"
+    return "n/a"
+
+
+def display_model_name(value: Any) -> str:
+    if value is None or pd.isna(value):
+        return "Unknown"
+    return str(value).replace("_", " ").title()
+
+
+def best_roc_auc_row(summary: dict[str, Any] | None, comparison: pd.DataFrame | None) -> pd.Series | None:
+    if comparison is None or comparison.empty or "roc_auc" not in comparison.columns:
+        return None
+
+    if summary and summary.get("best_model") and "model" in comparison.columns:
+        matches = comparison[comparison["model"].astype(str) == str(summary["best_model"])]
+        if not matches.empty:
+            return matches.iloc[0]
+
+    ranked = comparison.copy()
+    ranked["_roc_auc_sort"] = pd.to_numeric(ranked["roc_auc"], errors="coerce")
+    ranked = ranked.dropna(subset=["_roc_auc_sort"])
+    if ranked.empty:
+        return None
+    return ranked.sort_values("_roc_auc_sort", ascending=False).iloc[0]
+
+
 @st.cache_resource(show_spinner=False)
 def load_model_payload() -> tuple[dict[str, Any] | None, str | None, str | None]:
     for path in MODEL_CANDIDATES:
@@ -1014,31 +1043,39 @@ def page_performance() -> None:
 
     summary = load_json(str(REPORTS_DIR / "training_summary.json"))
     comparison = load_csv(str(REPORTS_DIR / "model_comparison.csv"))
+    best_row = best_roc_auc_row(summary, comparison)
 
-    if summary:
+    if summary or best_row is not None:
         c1, c2, c3, c4 = st.columns(4)
         with c1:
-            metric_card("Best Model", str(summary.get("best_model", "Unknown")).replace("_", " ").title())
+            best_model = summary.get("best_model") if summary else None
+            if best_model is None and best_row is not None and "model" in best_row:
+                best_model = best_row["model"]
+            metric_card("Best Model", display_model_name(best_model))
         with c2:
-            val = summary.get("best_pr_auc")
-            metric_card("PR-AUC", f"{val:.3f}" if isinstance(val, (int, float)) else "n/a")
+            val = best_row["roc_auc"] if best_row is not None and "roc_auc" in best_row else None
+            metric_card("ROC-AUC", format_metric_value(val))
         with c3:
-            val = summary.get("best_f1")
-            metric_card("F1 Score", f"{val:.3f}" if isinstance(val, (int, float)) else "n/a")
+            val = summary.get("best_f1") if summary else None
+            if val is None and best_row is not None and "f1" in best_row:
+                val = best_row["f1"]
+            metric_card("F1 Score", format_metric_value(val))
         with c4:
-            val = summary.get("best_threshold")
-            metric_card("Threshold", f"{val:.3f}" if isinstance(val, (int, float)) else "n/a")
+            val = summary.get("best_threshold") if summary else None
+            if val is None and best_row is not None and "threshold" in best_row:
+                val = best_row["threshold"]
+            metric_card("Threshold", format_metric_value(val))
     else:
         st.warning("Saved training summary was not found.")
 
     if comparison is not None and not comparison.empty:
-        display_cols = [c for c in ["model", "pr_auc", "roc_auc", "f1", "precision", "recall", "brier", "threshold"] if c in comparison.columns]
+        display_cols = [c for c in ["model", "roc_auc", "pr_auc", "f1", "precision", "recall", "brier", "threshold"] if c in comparison.columns]
         section_break()
         section_title("Classical ML Model Comparison")
         st.dataframe(comparison[display_cols], use_container_width=True, hide_index=True)
 
-        metric_cols = [c for c in ["pr_auc", "roc_auc", "f1", "precision", "recall"] if c in comparison.columns]
-        if {"model", "pr_auc"}.issubset(comparison.columns):
+        metric_cols = [c for c in ["roc_auc", "pr_auc", "f1", "precision", "recall"] if c in comparison.columns]
+        if {"model", "roc_auc"}.issubset(comparison.columns):
             melted = comparison[["model"] + metric_cols].melt(id_vars="model", var_name="Metric", value_name="Score")
             fig = px.bar(melted, x="model", y="Score", color="Metric", barmode="group", title="Model Scores", color_discrete_sequence=[RED, "#ffffff", "#8f8f8f", "#4c98b9", "#f6e500"])
             st.plotly_chart(plot_layout(fig), use_container_width=True)
@@ -1059,8 +1096,8 @@ def page_performance() -> None:
 
     figure_paths = [
         ("Confusion Matrices", FIGURES_DIR / "confusion_matrices.png"),
-        ("Precision-Recall Curves", FIGURES_DIR / "pr_curves.png"),
         ("ROC Curves", FIGURES_DIR / "roc_curves.png"),
+        ("Precision-Recall Curves", FIGURES_DIR / "pr_curves.png"),
         ("Random Forest Feature Importance", FIGURES_DIR / "feature_importance_rf.png"),
     ]
 
