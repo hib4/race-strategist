@@ -398,13 +398,28 @@ h1 {
 }
 
 .timeline-top {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  position: relative;
+  height: 22px;
   color: var(--muted);
   font-size: 18px;
   font-weight: 800;
   letter-spacing: 1.2px;
   text-transform: uppercase;
+}
+
+.timeline-top span {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.timeline-top span:nth-child(1) { left: 18px; }
+.timeline-top span:nth-child(2) { left: calc(36% + 18px); }
+.timeline-top span:nth-child(3) { left: calc(68% + 18px); }
+.timeline-top span:nth-child(4) {
+  right: 18px;
+  transform: translateX(50%);
 }
 
 .timeline-line {
