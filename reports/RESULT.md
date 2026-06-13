@@ -1,4 +1,4 @@
-# Result — F1 Race Strategist
+# Result — F1 Pit Stop Predictor
 
 **Task:** Predict, lap-by-lap, whether an F1 driver will pit on the **next** lap (binary classification).
 **Headline:** Random Forest baseline reaches **PR-AUC 0.43** on a race-grouped hold-out set — ~12× over the random-classifier floor (0.035), but recall is only **0.25** so the model misses 3 of every 4 pit stops at the F1-optimal threshold.

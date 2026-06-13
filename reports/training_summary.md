@@ -1,4 +1,4 @@
-# F1 Race Strategist — Model Training Summary
+# F1 Pit Stop Predictor — Model Training Summary
 
 **Test set:** 22,088 rows, positive rate 0.0346
 **Threshold policy:** `recall_target_0.60` (target recall = 0.60)

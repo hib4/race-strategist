@@ -33,3 +33,6 @@ htmlcov/
 # Editor/IDE files
 .vscode/
 .idea/
+
+# Presentation
+presentation/

@@ -64,7 +64,7 @@ HAIRLINE = "#303030"
 
 
 st.set_page_config(
-    page_title="Race Strategist",
+    page_title="Pit Stop Predictor",
     page_icon="🏎️",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -744,7 +744,7 @@ def page_home(df: pd.DataFrame | None, payload: dict[str, Any] | None, model_nam
         """
         <div class="rs-hero">
             <div class="rs-kicker">Formula 1 Strategy Dashboard</div>
-            <h1>Race Strategist</h1>
+            <h1>Pit Stop Predictor</h1>
             <div class="rs-subtitle">F1 Pit Stop Prediction Prototype Using Classical Machine Learning</div>
             <div class="rs-copy">
                 Given the current race situation, this prototype estimates how likely a driver is to pit on the next lap.
@@ -1136,7 +1136,7 @@ def main() -> None:
     payload, model_name, model_error = load_model_payload()
 
     with st.sidebar:
-        st.markdown('<div class="rs-kicker">Race Strategist</div>', unsafe_allow_html=True)
+        st.markdown('<div class="rs-kicker">Pit Stop Predictor</div>', unsafe_allow_html=True)
         section_title("Pit Stop Prediction")
         page = st.radio(
             "Navigation",

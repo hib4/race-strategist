@@ -1,8 +1,8 @@
-# Race Strategist Project Summary
+# Pit Stop Predictor Project Summary
 
 ## 1. Project Overview
 
-Race Strategist is a machine learning project and Streamlit app for Formula 1 pit strategy prediction.
+Pit Stop Predictor is a machine learning project and Streamlit app for Formula 1 pit strategy prediction.
 
 The goal is simple:
 
@@ -692,7 +692,7 @@ The most useful next improvements are:
 
 ## 20. Final Assessment
 
-Race Strategist is a complete and reproducible F1 pit-next-lap prediction system with strong held-out performance.
+Pit Stop Predictor is a complete and reproducible F1 pit-next-lap prediction system with strong held-out performance.
 
 The machine learning pipeline is well structured:
 

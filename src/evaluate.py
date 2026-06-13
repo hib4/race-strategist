@@ -271,7 +271,7 @@ def main() -> None:
 
     # Markdown report
     md = [
-        "# F1 Race Strategist — Model Training Summary",
+        "# F1 Pit Stop Predictor — Model Training Summary",
         "",
         f"**Test set:** {len(y_test):,} rows, positive rate {y_test.mean():.4f}",
         f"**Threshold policy:** `{summary['threshold_policy']}` "

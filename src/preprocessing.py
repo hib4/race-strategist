@@ -1,4 +1,4 @@
-"""Preprocessing for the F1 Race Strategist pit-prediction task.
+"""Preprocessing for the F1 pit-prediction task.
 
 Builds two preprocessor variants:
   - "scaled": RobustScaler on numerics, OneHot for Compound, TargetEncoder for
